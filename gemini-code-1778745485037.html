@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBX 神話寵物盲盒 - 營運版</title>
+    <style>
+        :root {
+            --rbx-dark: #111216;
+            --rbx-card: #1f2129;
+            --rbx-green: #00b06f;
+            --rbx-blue: #0077ff;
+            --border: #2e313d;
+            --red: #ff3b3b;
+            --purple: #a842ff;
+            --blue: #3b82f6;
+            --gold: #ffc107;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--rbx-dark);
+            color: #fff;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+
+        /* 虛假跑馬燈 */
+        .live-feed-bar {
+            width: 100%; background: #090a0c; border-bottom: 1px solid var(--border);
+            padding: 8px 0; overflow: hidden; white-space: nowrap; box-sizing: border-box;
+            font-size: 12px; color: #aaa; display: flex; align-items: center;
+        }
+        .live-feed-track { display: inline-block; animation: scrollLeft 30s linear infinite; }
+        .feed-item { display: inline-flex; align-items: center; margin-right: 40px; background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 12px; }
+        .feed-item span.user { color: var(--rbx-green); font-weight: bold; margin-right: 8px; }
+        .feed-item span.item { color: var(--gold); }
+        @keyframes scrollLeft { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+        header {
+            width: 100%; padding: 15px 20px; display: flex; justify-content: space-between;
+            align-items: center; background: var(--rbx-card); box-sizing: border-box;
+            border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 90;
+        }
+
+        .logo { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: white; display: flex; align-items: center; gap: 8px; }
+        .logo-icon { background: var(--rbx-green); color: #000; padding: 2px 6px; border-radius: 4px; }
+        .balance-box { background: rgba(0, 176, 111, 0.1); border: 1px solid var(--rbx-green); padding: 6px 15px; border-radius: 6px; color: var(--rbx-green); font-weight: bold; display: flex; align-items: center; gap: 5px;}
+
+        .container { max-width: 900px; width: 95%; margin: 20px auto; }
+
+        .cdk-section { background: var(--rbx-card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .cdk-input { background: #000; border: 1px solid var(--border); padding: 10px; border-radius: 6px; color: white; width: 70%; outline: none; }
+
+        .machine-box { background: var(--rbx-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .machine-title { font-size: 22px; margin: 0 0 5px 0; color: #fff; }
+        .machine-subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+
+        /* 滾輪區域 */
+        .roulette-viewport {
+            width: 100%; height: 140px; background: #090a0c; border: 2px solid var(--border);
+            border-radius: 6px; position: relative; overflow: hidden; margin: 20px 0;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .roulette-viewport.fullscreen-focus {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.1);
+            width: 90vw; z-index: 9999; box-shadow: 0 0 100px #000;
+        }
+
+        .pointer { position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: var(--gold); z-index: 10; transform: translateX(-50%); box-shadow: 0 0 15px var(--gold); }
+        .roulette-track { display: flex; position: absolute; left: 0; top: 15px; height: 110px; }
+
+        .skin-card {
+            width: 120px; height: 110px; background: #15161b; margin: 0 2px;
+            flex-shrink: 0; border-top: 4px solid #888; border-bottom: 4px solid #888; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; padding: 10px 5px; box-sizing: border-box; position: relative;
+        }
+        .skin-card img { width: 70px; height: 70px; object-fit: contain; margin-bottom: 5px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
+        .skin-name { font-size: 11px; color: #eee; white-space: nowrap; overflow: hidden; width: 100%; font-weight: bold; text-align: center; }
+        .skin-value { font-size: 10px; color: #888; margin-top: 2px; }
+
+        .rarity-red { border-top-color: var(--red); border-bottom-color: var(--red); background: linear-gradient(180deg, rgba(255,59,59,0.1) 0%, transparent 100%); }
+        .rarity-purple { border-top-color: var(--purple); border-bottom-color: var(--purple); background: linear-gradient(180deg, rgba(168,66,255,0.1) 0%, transparent 100%); }
+        .rarity-blue { border-top-color: var(--blue); border-bottom-color: var(--blue); }
+
+        .btn { background: var(--rbx-green); border: none; color: white; padding: 12px 25px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 14px; text-transform: uppercase; }
+        .btn:hover { filter: brightness(1.1); }
+        .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+        .btn-blue { background: var(--rbx-blue); }
+
+        .inventory-section { background: var(--rbx-card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
+        .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
+        .inv-item { background: #090a0c; border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+        .inv-item img { width: 50px; height: 50px; object-fit: contain; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; justify-content: center; align-items: center; }
+        .reward-display { background: var(--rbx-card); border: 1px solid var(--gold); border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 50px rgba(255,193,7,0.2); }
+        .reward-display img { width: 120px; height: 120px; object-fit: contain; }
+    </style>
+</head>
+<body>
+
+    <div class="live-feed-bar">
+        <div class="live-feed-track" id="fake-feed-track">
+            </div>
+    </div>
+
+    <header>
+        <div class="logo"><span class="logo-icon">RBX</span> 神話盲盒交易網</div>
+        <div class="balance-box">💰 <span id="balance-val">0</span> 金幣</div>
+    </header>
+
+    <div class="container">
+        <div class="cdk-section">
+            <input type="text" class="cdk-input" id="cdk-input" placeholder="輸入禮品卡 / CDK 充值金幣">
+            <button class="btn btn-blue" onclick="redeemCDK()">充值</button>
+        </div>
+
+        <div class="machine-box">
+            <h2 class="machine-title">🎃 萬聖節限定寵物箱</h2>
+            <div class="machine-subtitle">單次抽取需要：10 金幣</div>
+
+            <div class="roulette-viewport" id="roulette-viewport-id">
+                <div class="pointer"></div>
+                <div class="roulette-track" id="roulette-track"></div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="color: #888; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" id="skip-animation"> ⚡ 跳過動畫直接開啟
+                </label>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn" id="spin-btn" onclick="startSpin()">開啟盲盒 (10 金幣)</button>
+            </div>
+        </div>
+
+        <div class="inventory-section">
+            <h3>🎒 遊戲背包 (提取至 Roblox)</h3>
+            <p style="font-size: 11px; color: #888;">* 虛擬道具提取由人工客服處理，預計 12 小時內到帳。</p>
+            <div class="inventory-grid" id="inventory-grid"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="reward-modal">
+        <div class="reward-display">
+            <h2 style="color: var(--gold); margin-top: 0;">恭喜獲得！</h2>
+            <div id="reward-item-container"></div>
+            <button class="btn" onclick="closeModal()" style="margin-top: 20px; width: 100%;">放入背包</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心數據 ---
+        let balance = parseInt(localStorage.getItem('rbx_balance')) || 0;
+        let inventory = JSON.parse(localStorage.getItem('rbx_inventory')) || [];
+        let spinCount = parseInt(localStorage.getItem('rbx_spin_total')) || 0;
+        let sessionSpent = parseInt(localStorage.getItem('rbx_session_spent')) || 0;
+
+        const MACHINE_COST = 10;
+
+        // 獎品庫 (Roblox 風格)
+        const PRIZES = {
+            red: { name: "無頭騎士 (Headless)", value: "30,000 RBX", img: "https://tr.rbxcdn.com/15cc12bf8bd0c48e89f7fc9e2467d3dd/420/420/Hat/Png", rarity: "rarity-red" },
+            purple: { name: "霓虹飛龍寵物", value: "800 RBX", img: "https://tr.rbxcdn.com/dbbc2ed8975b9f71c3227eb0dc651a21/420/420/Hat/Png", rarity: "rarity-purple" },
+            blue: [{ name: "15 RBX", value: "提現代幣", img: "https://tr.rbxcdn.com/82fbb2e977054a86071ea9dd5b018b2c/420/420/Decal/Png", rarity: "rarity-blue" },
+                   { name: "20 RBX", value: "提現代幣", img: "https://tr.rbxcdn.com/82fbb2e977054a86071ea9dd5b018b2c/420/420/Decal/Png", rarity: "rarity-blue" }]
+        };
+
+        // --- 核心收割算法 ---
+        function getRiggedSkin() {
+            // 1. 救命草：餘額唔夠抽多 2 抽，派紫色留客
+            if (balance < (MACHINE_COST * 2) && balance >= MACHINE_COST) {
+                return PRIZES.purple;
+            }
+
+            // 2. 絕對護城河：消費滿 500 金幣先解鎖紅色大獎
+            if (sessionSpent >= 500) {
+                sessionSpent = 0; 
+                localStorage.setItem('rbx_session_spent', 0);
+                return PRIZES.red;
+            }
+
+            // 3. 紫色節奏：每 15 抽派一次甜頭
+            if (spinCount > 0 && spinCount % 15 === 0) {
+                return PRIZES.purple;
+            }
+
+            // 4. 預設全藍 (90% 時間都係抽中面值極低嘅 RBX)
+            return PRIZES.blue[Math.floor(Math.random() * PRIZES.blue.length)];
+        }
+
+        // --- 視覺誘導 (Teasing Track) ---
+        function setupTrack(winSkin) {
+            const track = document.getElementById('roulette-track');
+            track.innerHTML = '';
+            for(let i=0; i<85; i++) {
+                let s;
+                if(i === 65) {
+                    s = winSkin; // 內定中獎格
+                } else {
+                    let r = Math.random();
+                    // 視覺欺詐：大量顯示大獎，等佢以為好易中
+                    if(r < 0.15) s = PRIZES.red;
+                    else if(r < 0.35) s = PRIZES.purple;
+                    else s = PRIZES.blue[0];
+                }
+                const card = document.createElement('div');
+                card.className = `skin-card ${s.rarity}`;
+                card.innerHTML = `<img src="${s.img}"><div class="skin-name">${s.name}</div><div class="skin-value">${s.value}</div>`;
+                track.appendChild(card);
+            }
+        }
+
+        let isSpinning = false;
+        function startSpin() {
+            if (isSpinning) return;
+            if (balance < MACHINE_COST) { alert("❌ 金幣不足，請先充值！"); return; }
+
+            balance -= MACHINE_COST;
+            sessionSpent += MACHINE_COST;
+            spinCount++;
+            localStorage.setItem('rbx_session_spent', sessionSpent);
+
+            let winSkin = getRiggedSkin();
+            inventory.push(winSkin);
+            updateUI();
+
+            if(document.getElementById('skip-animation').checked) {
+                showReward(winSkin);
+                return;
+            }
+
+            isSpinning = true;
+            document.getElementById('spin-btn').disabled = true;
+            const viewport = document.getElementById('roulette-viewport-id');
+            viewport.classList.add('fullscreen-focus');
+            setupTrack(winSkin);
+
+            const track = document.getElementById('roulette-track');
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+
+            setTimeout(() => {
+                const cardWidth = 124; // 120 width + 4 margin
+                const offset = -(65 * cardWidth) + (viewport.offsetWidth/2) - (cardWidth/2);
+                track.style.transition = 'transform 8s cubic-bezier(0.05, 0.9, 0.1, 1)';
+                track.style.transform = `translateX(${offset}px)`;
+            }, 50);
+
+            setTimeout(() => {
+                isSpinning = false;
+                viewport.classList.remove('fullscreen-focus');
+                document.getElementById('spin-btn').disabled = false;
+                showReward(winSkin);
+            }, 8200);
+        }
+
+        function showReward(skin) {
+            const container = document.getElementById('reward-item-container');
+            container.innerHTML = `
+                <img src="${skin.img}">
+                <h3 style="margin-bottom:5px;">${skin.name}</h3>
+                <p style="color:#aaa; font-size:14px; margin-top:0;">價值: ${skin.value}</p>
+            `;
+            document.getElementById('reward-modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('reward-modal').style.display = 'none'; }
+
+        function updateUI() {
+            document.getElementById('balance-val').innerText = balance;
+            localStorage.setItem('rbx_balance', balance);
+            localStorage.setItem('rbx_inventory', JSON.stringify(inventory));
+            localStorage.setItem('rbx_spin_total', spinCount);
+            
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            inventory.slice().reverse().forEach(item => {
+                const div = document.createElement('div');
+                div.className = `inv-item ${item.rarity}`;
+                div.innerHTML = `<img src="${item.img}"><div style="font-size:10px; margin-top:5px; color:#fff;">${item.name}</div>`;
+                grid.appendChild(div);
+            });
+        }
+
+        function redeemCDK() {
+            const val = document.getElementById('cdk-input').value;
+            if(val) { 
+                balance += 200; // 測試充值，一次加 200 金幣
+                alert("✅ 充值成功！獲得 200 金幣"); 
+                document.getElementById('cdk-input').value = '';
+                updateUI(); 
+            }
+        }
+
+        // 生成虛假跑馬燈數據
+        function generateFakeFeed() {
+            const track = document.getElementById('fake-feed-track');
+            const names = ['AdoptMe_Pro', 'xX_Shadow_Xx', 'RobloxKing99', 'BloxFruit_God', 'Ninja_001'];
+            const items = ['10,000 RBX', '無頭騎士', '黑暗之刃', '霓虹影龍', '5,000 RBX'];
+            
+            let html = '';
+            for(let i=0; i<15; i++) {
+                let n = names[Math.floor(Math.random()*names.length)];
+                let itm = items[Math.floor(Math.random()*items.length)];
+                html += `<div class="feed-item"><span class="user">${n}</span> 剛剛抽中了 <span class="item">${itm}</span></div>`;
+            }
+            track.innerHTML = html + html; // 重複一次確保無縫滾動
+        }
+
+        generateFakeFeed();
+        updateUI();
+        setupTrack(PRIZES.blue[0]);
+    </script>
+</body>
+</html>
